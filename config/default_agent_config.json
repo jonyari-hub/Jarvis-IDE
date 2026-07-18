@@ -1,0 +1,48 @@
+{
+  "model": {
+    "provider": "openai",
+    "role": "orchestrator",
+    "model_name": "",
+    "api_key": "",
+    "base_url": "",
+    "temperature": 0.2,
+    "max_tokens": 4000,
+    "timeout": 120,
+    "headers": {},
+    "extra_params": {}
+  },
+  "model_secondary": null,
+  "paths": {
+    "project_root": "",
+    "obsidian_vault": "",
+    "skills_root": "skills",
+    "prompts_root": "prompts",
+    "output_root": "outputs",
+    "cache_root": "cache",
+    "logs_root": "logs",
+    "session_state_file": ".jarvis_session.json"
+  },
+  "behavior": {
+    "allow_obsidian": true,
+    "allow_code_editing": false,
+    "require_edit_approval": true,
+    "include_repo_tree": true,
+    "include_obsidian_context": true,
+    "include_extra_context": true,
+    "max_files_in_context": 8,
+    "max_retries": 3,
+    "retry_delay_seconds": 10,
+    "request_timeout_seconds": 120
+  },
+  "ui_context": {
+    "current_project_name": "",
+    "notes": "",
+    "session_id": ""
+  },
+  "context_manager": {
+    "project_enabled": true,
+    "obsidian_enabled": true,
+    "extra_items": []
+  },
+  "extra": {}
+}

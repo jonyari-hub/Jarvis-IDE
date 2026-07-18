@@ -1,0 +1,2603 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. IDE</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<style>
+  :root {
+    --bg0: #0d1117;
+    --bg1: #161b22;
+    --bg2: #1c2128;
+    --bg3: #21262d;
+    --bg4: #30363d;
+    --border: #30363d;
+    --text0: #e6edf3;
+    --text1: #8b949e;
+    --text2: #6e7681;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --teal: #39d353;
+    --sidebar-w: 260px;
+    --graph-w: 300px;
+    --bottom-h: 300px;
+    --titlebar-h: 40px;
+    --tab-h: 36px;
+    --status-h: 24px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg0);
+    color: var(--text0);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── TITLEBAR ── */
+  #titlebar {
+    height: var(--titlebar-h);
+    background: var(--bg1);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 8px;
+    flex-shrink: 0;
+    position: relative;
+  }
+  #titlebar .sep { flex: 1; }
+  #titlebar .title-center {
+    font-size: 13px;
+    color: var(--accent);
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    letter-spacing: 3px;
+    white-space: nowrap;
+    text-align: center;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ── MODELO LOCAL INLINE ── */
+  #local-model-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 7px;
+  }
+  #local-model-group label { font-size: 10px; color: var(--text2); white-space: nowrap; }
+  #local-model-select {
+    background: transparent;
+    border: none;
+    color: var(--text0);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+    max-width: 130px;
+  }
+  #local-model-select option { background: var(--bg2); }
+
+  #local-install-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #local-install-input {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    outline: none;
+    width: 130px;
+  }
+  #local-install-input::placeholder { color: var(--text2); }
+  #local-install-input:focus { border-color: var(--accent); }
+
+  .btn-sm {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-sm:hover { background: var(--bg4); }
+  .btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d1117;
+    font-weight: 600;
+  }
+  .btn-accent:hover { background: #79b8ff; }
+  .btn-green {
+    background: #1a3a25;
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .btn-green:hover { background: #1f4d30; }
+  .btn-amber {
+    background: #3d2f0a;
+    border-color: var(--amber);
+    color: var(--amber);
+  }
+  .btn-amber:hover { background: #4d3a0d; }
+
+  /* ── MAIN LAYOUT ── */
+  #workspace {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── LEFT SIDEBAR ── */
+  #sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg1);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .panel-header {
+    height: 32px;
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: var(--text1);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .panel-header .ph-actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text1);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: color .15s, background .15s;
+  }
+  .icon-btn:hover { color: var(--text0); background: var(--bg3); }
+
+  #project-path-bar {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  #project-path-input {
+    flex: 1;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: monospace;
+    outline: none;
+  }
+  #project-path-input:focus { border-color: var(--accent); }
+
+  /* ── ARCHIVOS ADICIONALES en sidebar ── */
+  #additional-files-bar {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  #additional-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #additional-files-header span {
+    font-size: 10px;
+    color: var(--text1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  #additional-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+  .add-file-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg2);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: var(--text0);
+  }
+  .add-file-item .af-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .add-file-item .af-remove {
+    background: none; border: none; color: var(--text2); cursor: pointer; padding: 0 2px; font-size: 10px;
+  }
+  .add-file-item .af-remove:hover { color: var(--red); }
+
+  #file-search {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #file-search input {
+    width: 100%;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 11px;
+    outline: none;
+  }
+  #file-search input:focus { border-color: var(--accent); }
+
+  #file-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+  #file-tree::-webkit-scrollbar { width: 5px; }
+  #file-tree::-webkit-scrollbar-track { background: transparent; }
+  #file-tree::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text0);
+    font-size: 12px;
+    transition: background .1s;
+  }
+  .tree-item:hover { background: var(--bg3); }
+  .tree-item.active { background: var(--bg4); color: var(--accent); }
+  .tree-item.impacted { border-left: 2px solid var(--amber); }
+  .tree-item i { font-size: 12px; flex-shrink: 0; }
+  .tree-item .item-name { overflow: hidden; text-overflow: ellipsis; }
+
+  .tree-dir > i.fa-folder { color: var(--accent); }
+  .tree-dir > i.fa-folder-open { color: var(--accent); }
+  .tree-file i { color: var(--text1); }
+  .tree-file.py i { color: #4b89dc; }
+  .tree-file.md i { color: #79b8ff; }
+  .tree-file.json i { color: #e6c07b; }
+  .tree-file.bat i { color: #abb2bf; }
+
+  /* ── EDITOR CENTER ── */
+  #editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  /* ── SANDBOX HEADER (encima del editor) ── */
+  #sandbox-header {
+    height: 32px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  #sandbox-header span {
+    font-size: 11px;
+    color: var(--text1);
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-right: 4px;
+  }
+
+  /* ── SANDBOX AREA ── */
+  #sandbox-area {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    background: #fff;
+  }
+  #sandbox-area.active { display: flex; }
+  #sandbox-iframe {
+    flex: 1;
+    border: none;
+    width: 100%;
+  }
+
+  #tabs {
+    height: var(--tab-h);
+    background: var(--bg1);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  #tabs::-webkit-scrollbar { height: 3px; }
+  #tabs::-webkit-scrollbar-thumb { background: var(--bg4); }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text1);
+    background: var(--bg1);
+    transition: background .1s;
+    flex-shrink: 0;
+  }
+  .tab:hover { background: var(--bg2); color: var(--text0); }
+  .tab.active {
+    background: var(--bg0);
+    color: var(--text0);
+    border-top: 1px solid var(--accent);
+  }
+  .tab .tab-close {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 1px;
+    border-radius: 3px;
+  }
+  .tab .tab-close:hover { background: var(--bg4); color: var(--text0); }
+  .tab.modified::after { content: '●'; color: var(--amber); margin-left: 2px; font-size: 9px; }
+
+  #monaco-container {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  #editor-welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text2);
+    gap: 12px;
+  }
+  #editor-welcome i { font-size: 48px; color: var(--bg4); }
+  #editor-welcome h2 { font-size: 16px; color: var(--text1); font-weight: 400; }
+  #editor-welcome p { font-size: 12px; }
+
+  /* ── RIGHT PANEL: CONTEXT/GRAPH ── */
+  #graph-panel {
+    width: var(--graph-w);
+    background: var(--bg1);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .panel-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--text1);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s;
+    white-space: nowrap;
+  }
+  .panel-tab:hover { color: var(--text0); }
+  .panel-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .panel-content { flex: 1; overflow-y: auto; padding: 8px; }
+  .panel-content::-webkit-scrollbar { width: 5px; }
+  .panel-content::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  #obsidian-path-bar {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  #obsidian-path-input {
+    flex: 1;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: monospace;
+    outline: none;
+  }
+  #obsidian-path-input:focus { border-color: var(--accent); }
+
+  .graph-node {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: border-color .15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .graph-node:hover { border-color: var(--accent); }
+  .graph-node.current { border-color: var(--accent); background: var(--bg3); }
+  .graph-node.impacted { border-color: var(--amber); }
+  .graph-node i { font-size: 11px; color: var(--text1); }
+  .graph-node .node-name { flex: 1; color: var(--text0); }
+  .graph-node .node-deps { font-size: 10px; color: var(--text2); }
+
+  .info-block {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .info-block h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text1); margin-bottom: 6px; }
+  .info-block p { color: var(--text0); white-space: pre-wrap; word-break: break-word; }
+  .badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    margin: 2px;
+  }
+  .badge-blue { background: #1c3a5e; color: var(--accent); }
+  .badge-amber { background: #3d2f0a; color: var(--amber); }
+  .badge-green { background: #0d2f17; color: var(--green); }
+  .badge-red { background: #3d0d0d; color: var(--red); }
+
+  /* ── BOTTOM PANEL ── */
+  #bottom-panel {
+    height: var(--bottom-h);
+    background: var(--bg1);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  /* CHAT */
+  #chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+  #chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #chat-messages::-webkit-scrollbar { width: 5px; }
+  #chat-messages::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  .msg {
+    max-width: 90%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    word-break: break-word;
+  }
+  .msg.user { align-self: flex-end; background: #1d3557; color: var(--text0); border-bottom-right-radius: 2px; }
+  .msg.system { align-self: flex-start; background: var(--bg2); color: var(--text0); border-bottom-left-radius: 2px; }
+  .msg.error { background: #3d0d0d; color: var(--red); }
+  .msg.success { background: #0d2f17; color: var(--green); }
+
+  #chat-input-area {
+    padding: 6px 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    align-items: flex-end;
+  }
+  #chat-input {
+    flex: 1;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    min-height: 34px;
+    max-height: 100px;
+  }
+  #chat-input:focus { border-color: var(--accent); }
+  #chat-input::placeholder { color: var(--text2); }
+
+  /* EVENTS LOG */
+  #events-area {
+    width: 340px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  #events-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  #events-log::-webkit-scrollbar { width: 5px; }
+  #events-log::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  .event-item {
+    display: flex;
+    gap: 8px;
+    padding: 5px 8px;
+    background: var(--bg2);
+    border-radius: 5px;
+    border-left: 3px solid var(--bg4);
+    font-size: 11px;
+    line-height: 1.4;
+    animation: fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .event-item.task_received { border-left-color: var(--accent); }
+  .event-item.file_read { border-left-color: var(--teal); }
+  .event-item.dependency_found { border-left-color: var(--purple); }
+  .event-item.graph_node_loaded { border-left-color: #4b89dc; }
+  .event-item.impact_detected { border-left-color: var(--amber); }
+  .event-item.patch_generated { border-left-color: var(--green); }
+  .event-item.graph_update_suggested { border-left-color: var(--purple); }
+  .event-item.task_completed { border-left-color: var(--green); }
+  .event-item.task_failed { border-left-color: var(--red); }
+  .event-item.log { border-left-color: var(--text2); }
+
+  .event-icon { font-size: 11px; margin-top: 1px; flex-shrink: 0; }
+  .event-body { flex: 1; min-width: 0; }
+  .event-type { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin-bottom: 2px; }
+  .event-msg { color: var(--text0); word-break: break-word; }
+  .event-time { font-size: 9px; color: var(--text2); flex-shrink: 0; }
+
+  /* STATUS BAR */
+  #statusbar {
+    height: var(--status-h);
+    background: #0366d6;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    gap: 16px;
+    font-size: 11px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  #statusbar .sb-item { display: flex; align-items: center; gap: 4px; opacity: 0.85; }
+  #statusbar .sb-item i { font-size: 11px; }
+  #ws-status { color: #fff; }
+  #ws-status.ok { color: #7ee787; }
+  #ws-status.err { color: #f85149; }
+  #ws-status.connecting { color: #e3b341; }
+
+  /* SPLITTER */
+  .vsplit {
+    width: 4px;
+    background: var(--border);
+    cursor: col-resize;
+    transition: background .15s;
+    flex-shrink: 0;
+  }
+  .vsplit:hover { background: var(--accent); }
+
+  /* LOADER OVERLAY */
+  #loader {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,17,23,.85);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    gap: 12px;
+    display: none;
+  }
+  #loader .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--bg4);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loader p { color: var(--text0); font-size: 13px; }
+
+  /* ── MODALES ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,17,23,.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+
+  .modal-box {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 480px;
+    max-width: 95vw;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .modal-box h3 { font-size: 14px; color: var(--text0); }
+  .modal-box label { font-size: 11px; color: var(--text1); display: block; margin-bottom: 3px; }
+  .modal-box input, .modal-box select {
+    width: 100%;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+  }
+  .modal-box input:focus, .modal-box select:focus { border-color: var(--accent); }
+  .modal-row { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-sep { border: none; border-top: 1px solid var(--border); }
+
+  /* ── MODAL CONFIG PROVEEDOR ── */
+  #provider-modal .provider-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .provider-card {
+    background: var(--bg2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    text-align: center;
+  }
+  .provider-card:hover { border-color: var(--accent); }
+  .provider-card.selected { border-color: var(--accent); background: var(--bg3); }
+  .provider-card .pc-icon { font-size: 20px; margin-bottom: 4px; }
+  .provider-card .pc-name { font-size: 11px; font-weight: 600; color: var(--text0); }
+  .provider-card .pc-desc { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+  /* test-connection result */
+  #test-conn-result {
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    display: none;
+  }
+  #test-conn-result.ok { background: #0d2f17; color: var(--green); display: block; }
+  #test-conn-result.err { background: #3d0d0d; color: var(--red); display: block; }
+  #test-conn-result.loading { background: var(--bg2); color: var(--text1); display: block; }
+
+  /* toast notification */
+  #toast {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 7px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  /* file input hidden */
+  #additional-file-input { display: none; }
+
+  /* ── MEMORIA DE PROYECTO ── */
+  #memory-badge {
+    display: none;
+    background: var(--green);
+    color: #0d1117;
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 9px;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+
+  #memory-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,17,23,.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    backdrop-filter: blur(2px);
+  }
+  #memory-modal.show { display: flex; }
+
+  #memory-box {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: min(700px, 95vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #memory-box .mem-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #memory-box .mem-header h3 { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  #mem-mode-badge {
+    font-size: 9px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--text1);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .mem-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+  .mem-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text1);
+    padding: 8px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-right: 4px;
+    transition: color .15s, border-color .15s;
+  }
+  .mem-tab:hover { color: var(--text0); }
+  .mem-tab.active { border-bottom-color: var(--accent); color: var(--text0); }
+
+  .mem-tab-content { flex: 1; overflow-y: auto; padding: 14px 16px; display: none; flex-direction: column; gap: 10px; }
+  .mem-tab-content.active { display: flex; }
+  .mem-tab-content::-webkit-scrollbar { width: 5px; }
+  .mem-tab-content::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+  /* Stats */
+  .mem-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mem-stat {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    flex: 1;
+    min-width: 80px;
+  }
+  .mem-stat .stat-label { color: var(--text2); font-size: 9px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+  .mem-stat .stat-value { font-size: 18px; font-weight: 700; }
+
+  /* Entradas de historial */
+  .mem-entry {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--bg4);
+    border-radius: 6px;
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+  .mem-entry.fix    { border-left-color: var(--green); }
+  .mem-entry.edit   { border-left-color: var(--accent); }
+  .mem-entry.refactor { border-left-color: var(--amber); }
+  .mem-entry.create { border-left-color: var(--purple); }
+  .mem-entry.delete { border-left-color: var(--red); }
+  .mem-entry-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .mem-entry-type {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+  .mem-entry-type.fix    { background: #0d2f17; color: var(--green); }
+  .mem-entry-type.edit   { background: #1c3a5e; color: var(--accent); }
+  .mem-entry-type.refactor { background: #3d2f0a; color: var(--amber); }
+  .mem-entry-type.create { background: #2a1f4d; color: var(--purple); }
+  .mem-entry-type.delete { background: #3d0d0d; color: var(--red); }
+  .mem-entry-file { color: var(--text0); font-family: monospace; font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mem-entry-time { color: var(--text2); font-size: 9px; flex-shrink: 0; }
+  .mem-entry-desc { color: var(--text0); line-height: 1.5; margin-bottom: 3px; }
+  .mem-entry-task { color: var(--text2); font-style: italic; font-size: 10px; }
+
+  /* Config */
+  .mem-field { display: flex; flex-direction: column; gap: 4px; }
+  .mem-field label { font-size: 10px; color: var(--text1); text-transform: uppercase; letter-spacing: 1px; }
+  .mem-field input[type=text] {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    color: var(--text0);
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+  }
+  .mem-field input[type=text]:focus { border-color: var(--accent); }
+  .mem-field .field-hint { font-size: 10px; color: var(--text2); }
+
+  .mem-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .mem-toggle-info strong { font-size: 12px; display: block; margin-bottom: 2px; }
+  .mem-toggle-info span { font-size: 10px; color: var(--text2); }
+
+  .toggle-switch { position: relative; display: inline-block; width: 38px; height: 20px; cursor: pointer; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0;
+    background: var(--bg4);
+    border-radius: 20px;
+    transition: background .2s;
+  }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 14px; height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  input:checked + .toggle-track { background: var(--green); }
+  input:checked ~ .toggle-thumb,
+  .toggle-switch input:checked + .toggle-track + .toggle-thumb { transform: translateX(18px); }
+
+  .mem-mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .mem-mode-card {
+    background: var(--bg2);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .mem-mode-card:hover { border-color: var(--accent); }
+  .mem-mode-card.selected { border-color: var(--accent); background: var(--bg3); }
+  .mem-mode-card .mc-icon { font-size: 20px; margin-bottom: 4px; }
+  .mem-mode-card .mc-name { font-size: 11px; font-weight: 600; color: var(--text0); }
+  .mem-mode-card .mc-desc { font-size: 9px; color: var(--text2); margin-top: 2px; }
+
+  #mem-save-msg { font-size: 11px; color: var(--green); display: none; }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <p id="loader-msg">Cargando...</p>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: CONFIGURACIÓN PROVEEDOR LLM
+════════════════════════════════════════════════════════════ -->
+<div id="provider-modal" class="modal-overlay">
+  <div class="modal-box" style="width:580px;max-height:90vh;overflow-y:auto">
+    <h3><i class="fas fa-robot" style="color:var(--accent);margin-right:6px"></i>Configuración del proveedor LLM</h3>
+    <hr class="modal-sep">
+
+    <div style="font-size:10px;color:var(--text1);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Seleccioná el proveedor</div>
+    <div class="provider-grid">
+      <div class="provider-card selected" onclick="selectProvider('openai',this)">
+        <div class="pc-icon">🟢</div>
+        <div class="pc-name">OpenAI</div>
+        <div class="pc-desc">GPT-4o, GPT-4.1, o1...</div>
+      </div>
+      <div class="provider-card" onclick="selectProvider('anthropic',this)">
+        <div class="pc-icon">🟣</div>
+        <div class="pc-name">Anthropic</div>
+        <div class="pc-desc">Claude 3.5, Claude 4...</div>
+      </div>
+      <div class="provider-card" onclick="selectProvider('google',this)">
+        <div class="pc-icon">🔵</div>
+        <div class="pc-name">Google</div>
+        <div class="pc-desc">Gemini 2.0, 2.5 Pro...</div>
+      </div>
+      <div class="provider-card" onclick="selectProvider('nvidia',this)">
+        <div class="pc-icon">🟩</div>
+        <div class="pc-name">NVIDIA</div>
+        <div class="pc-desc">Llama 3.1, Mistral NIM...</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+      <div>
+        <label>Modelo</label>
+        <input id="prov-model" type="text" placeholder="gpt-4o / claude-3-5-sonnet...">
+      </div>
+      <div>
+        <label>API Key</label>
+        <input id="prov-apikey" type="password" placeholder="sk-... / sk-ant-... / nvapi-...">
+      </div>
+    </div>
+
+    <div>
+      <label>Base URL <span style="color:var(--text2);font-size:10px">(se carga automáticamente, podés modificarla)</span></label>
+      <input id="prov-baseurl" type="text" placeholder="https://api.openai.com/v1">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <label>Temperature</label>
+        <input id="prov-temperature" type="number" value="0.2" min="0" max="2" step="0.05">
+      </div>
+      <div>
+        <label>Max tokens</label>
+        <input id="prov-max-tokens" type="number" value="4000" min="256" max="32000">
+      </div>
+    </div>
+
+    <!-- Modelo secundario -->
+    <div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="prov-use-secondary" onchange="toggleSecondaryProvider()">
+        <span style="font-size:11px">Usar modelo cirujano diferente al orquestador</span>
+      </label>
+    </div>
+    <div id="prov-secondary-block" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px">
+      <div style="font-size:10px;color:var(--text1);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Modelo Cirujano</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label>Provider cirujano</label>
+          <select id="prov-surgeon-provider" style="background:var(--bg0);border:1px solid var(--border);color:var(--text0);padding:5px 8px;border-radius:4px;font-size:12px;outline:none">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="google">Google</option>
+            <option value="nvidia">NVIDIA</option>
+          </select>
+        </div>
+        <div>
+          <label>Modelo cirujano</label>
+          <input id="prov-surgeon-model" type="text" placeholder="gpt-4o-mini...">
+        </div>
+      </div>
+      <div style="margin-top:6px">
+        <label>API Key cirujano</label>
+        <input id="prov-surgeon-key" type="password" placeholder="clave del modelo cirujano">
+      </div>
+    </div>
+
+    <div id="test-conn-result"></div>
+
+    <hr class="modal-sep">
+    <div class="modal-row">
+      <button class="btn-sm btn-amber" onclick="testConnection()"><i class="fas fa-plug"></i> Probar conexión</button>
+      <div style="flex:1"></div>
+      <button class="btn-sm" onclick="closeProviderModal()">Cancelar</button>
+      <button class="btn-sm btn-accent" onclick="saveProviderConfig()"><i class="fas fa-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: PIPELINE (RUN AGENT)
+════════════════════════════════════════════════════════════ -->
+<div id="config-modal" class="modal-overlay">
+  <div class="modal-box" style="width:520px;max-height:90vh;overflow-y:auto">
+    <h3><i class="fas fa-bolt" style="color:var(--amber);margin-right:6px"></i>Pipeline</h3>
+    <hr class="modal-sep">
+
+    <div>
+      <label>Archivo a reparar (ej: sininania_kernel.py)</label>
+      <input id="cfg-archivo" type="text" placeholder="nombre_modulo.py">
+    </div>
+    <div>
+      <label>Descripción del problema</label>
+      <input id="cfg-problema" type="text" placeholder="El kernel lanza KeyError al iniciar...">
+    </div>
+    <div>
+      <label>Comportamiento esperado</label>
+      <input id="cfg-esperado" type="text" placeholder="Debe capturar estado por defecto..." value="Funcionamiento correcto">
+    </div>
+    <div>
+      <label>Logs / traceback</label>
+      <input id="cfg-sintomas" type="text" placeholder="Traceback (most recent call last)...">
+    </div>
+
+    <hr class="modal-sep">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:11px;color:var(--text2)">
+      <i class="fas fa-info-circle" style="color:var(--accent)"></i>
+      Estos datos se usan como contexto cuando enviás un mensaje desde el chat. Podés dejarlos en blanco y completarlos con lenguaje natural.
+    </div>
+    <div class="modal-row">
+      <div style="flex:1"></div>
+      <button class="btn-sm" onclick="closeConfig()">Cancelar</button>
+      <button class="btn-sm btn-accent" onclick="savePipelineConfig()">
+        <i class="fas fa-save"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" class="modal-overlay">
+  <div class="modal-box" style="width:440px">
+    <h3><i class="fas fa-sliders" style="color:var(--accent);margin-right:6px"></i>Configuración avanzada</h3>
+    <hr class="modal-sep">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div><label>Max reintentos</label><input id="adv-max-retries" type="number" value="3" min="1" max="10"></div>
+      <div><label>Timeout (s)</label><input id="adv-timeout" type="number" value="120" min="10" max="600"></div>
+      <div><label>Temperature</label><input id="adv-temperature" type="number" value="0.2" min="0" max="2" step="0.05"></div>
+      <div><label>Max tokens</label><input id="adv-max-tokens" type="number" value="4000" min="256" max="32000"></div>
+    </div>
+    <div style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="adv-allow-editing">
+        <span>Permitir edición de código (allow_code_editing)</span>
+      </label>
+    </div>
+    <div style="margin-top:6px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="adv-allow-obsidian" checked>
+        <span>Usar vault de Obsidian</span>
+      </label>
+    </div>
+    <hr class="modal-sep">
+    <div class="modal-row">
+      <button class="btn-sm" onclick="closeSettings()">Cerrar</button>
+      <button class="btn-sm btn-accent" onclick="applySettings()"><i class="fas fa-check"></i> Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- INPUT HIDDEN para archivos adicionales -->
+<input type="file" id="additional-file-input" multiple accept="*/*">
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: MEMORIA DE PROYECTO
+════════════════════════════════════════════════════════════ -->
+<div id="memory-modal">
+  <div id="memory-box">
+
+    <!-- Header -->
+    <div class="mem-header">
+      <h3>
+        <i class="fas fa-clock-rotate-left" style="color:var(--accent)"></i>
+        Memoria de Proyecto
+        <span id="mem-mode-badge">json</span>
+      </h3>
+      <button class="icon-btn" onclick="memoryPanel.close()"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mem-tabs">
+      <button class="mem-tab active" onclick="memoryPanel.switchTab('history', this)">Historial</button>
+      <button class="mem-tab" onclick="memoryPanel.switchTab('config', this)">Configuración</button>
+    </div>
+
+    <!-- TAB: HISTORIAL -->
+    <div id="mem-tab-history" class="mem-tab-content active">
+      <div class="mem-stats">
+        <div class="mem-stat">
+          <div class="stat-label">Cambios</div>
+          <div class="stat-value" id="stat-total" style="color:var(--accent)">0</div>
+        </div>
+        <div class="mem-stat">
+          <div class="stat-label">Archivos</div>
+          <div class="stat-value" id="stat-files" style="color:var(--green)">0</div>
+        </div>
+        <div class="mem-stat" style="flex:3">
+          <div class="stat-label">Último cambio</div>
+          <div id="stat-last" style="font-size:11px;color:var(--text0);margin-top:3px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+        </div>
+      </div>
+
+      <div id="mem-entries">
+        <div style="color:var(--text2);font-size:11px;text-align:center;padding:24px">
+          <i class="fas fa-clock-rotate-left" style="font-size:20px;color:var(--bg4);display:block;margin-bottom:8px"></i>
+          No hay cambios registrados aún.<br>
+          <span style="font-size:10px">Los cambios aparecerán aquí después de que el agente aplique un parche.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: CONFIGURACIÓN -->
+    <div id="mem-tab-config" class="mem-tab-content">
+
+      <!-- Toggle habilitar -->
+      <div class="mem-toggle-row">
+        <div class="mem-toggle-info">
+          <strong>Habilitar Memoria de Proyecto</strong>
+          <span>Registra automáticamente cada cambio que aplica el agente</span>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="mem-enabled" onchange="memoryPanel.onToggle(this)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+
+      <!-- Modo de guardado -->
+      <div class="mem-field">
+        <label>Modo de guardado</label>
+        <div class="mem-mode-grid">
+          <div class="mem-mode-card selected" onclick="memoryPanel.selectMode('json', this)">
+            <div class="mc-icon">🗄️</div>
+            <div class="mc-name">JSON</div>
+            <div class="mc-desc">Estructurado</div>
+          </div>
+          <div class="mem-mode-card" onclick="memoryPanel.selectMode('markdown', this)">
+            <div class="mc-icon">📝</div>
+            <div class="mc-name">Markdown</div>
+            <div class="mc-desc">CHANGELOG.md</div>
+          </div>
+          <div class="mem-mode-card" onclick="memoryPanel.selectMode('obsidian', this)">
+            <div class="mc-icon">🔮</div>
+            <div class="mc-name">Obsidian</div>
+            <div class="mc-desc">Tu bóveda</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Carpeta (json/markdown) -->
+      <div class="mem-field" id="mem-dir-group">
+        <label>Carpeta de memoria</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="mem-dir" value="./jarvis_memory" placeholder="./jarvis_memory" style="flex:1">
+          <button class="btn-sm" onclick="memoryPanel.pickDir('mem-dir')" title="Seleccionar carpeta"><i class="fas fa-folder-open"></i></button>
+        </div>
+        <span class="field-hint">Ruta relativa al proyecto o absoluta. Se creará si no existe.</span>
+      </div>
+
+      <!-- Carpeta Obsidian -->
+      <div class="mem-field" id="mem-obsidian-group" style="display:none">
+        <label>Carpeta en tu bóveda de Obsidian</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="mem-obsidian-folder" placeholder="C:/Users/.../Vault/Jarvis-IDE" style="flex:1">
+          <button class="btn-sm" onclick="memoryPanel.pickDir('mem-obsidian-folder')" title="Seleccionar carpeta"><i class="fas fa-folder-open"></i></button>
+        </div>
+        <span class="field-hint">Ruta absoluta dentro de tu bóveda donde se crearán las notas.</span>
+
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:8px;font-size:11px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" id="mem-per-file" checked> Crear nota individual por archivo modificado
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <label style="text-transform:none;letter-spacing:0;font-size:11px;white-space:nowrap">Tag:</label>
+          <input type="text" id="mem-tag" value="jarvis-ide" placeholder="jarvis-ide" style="width:140px">
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-sm btn-green" onclick="memoryPanel.saveConfig()">
+          <i class="fas fa-save"></i> Guardar configuración
+        </button>
+        <span id="mem-save-msg">✓ Guardado</span>
+      </div>
+
+    </div><!-- /tab-config -->
+
+  </div><!-- /memory-box -->
+</div><!-- /memory-modal -->
+
+<!-- ══════════════════════════════════════════════════════════
+     TITLEBAR
+════════════════════════════════════════════════════════════ -->
+<div id="titlebar" style="position:relative;">
+  <!-- Selector modelos locales (Ollama) - ahora pegado a la izquierda -->
+  <div id="local-model-group" title="Modelos locales (Ollama)">
+    <label><i class="fas fa-server" style="color:var(--teal)"></i> Local:</label>
+    <select id="local-model-select" onchange="onLocalModelChange()">
+      <option value="">— sin local —</option>
+    </select>
+    <button class="icon-btn" onclick="fetchLocalModels()" title="Recargar modelos Ollama"><i class="fas fa-rotate-right" style="font-size:11px"></i></button>
+  </div>
+
+  <!-- Instalar modelo local -->
+  <div id="local-install-group">
+    <input id="local-install-input" type="text" placeholder="deepseek-v2 (instalar)">
+    <button class="btn-sm btn-green" onclick="installLocalModel()" title="Instalar modelo Ollama">
+      <i class="fas fa-rocket"></i> Instalar
+    </button>
+  </div>
+
+  <!-- Título CENTRADO con posicionamiento absoluto -->
+  <span class="title-center">J.A.R.V.I.S. IDE</span>
+
+  <div class="sep"></div>
+
+  <!-- Descargar código / proyecto -->
+  <button class="btn-sm" onclick="downloadCode()" title="Descargar contenido del sandbox como HTML">
+    <i class="fas fa-file-code"></i> Descargar Código
+  </button>
+  <button class="btn-sm btn-green" onclick="downloadProjectZip()" title="Descargar proyecto como ZIP">
+    <i class="fas fa-file-zipper"></i> ZIP
+  </button>
+
+  <!-- Configurar proveedor cloud -->
+  <button class="btn-sm" onclick="openProviderModal()" title="Configurar proveedor LLM">
+    <i class="fas fa-gear"></i> LLM Config
+  </button>
+
+  <button class="btn-sm" onclick="saveCurrentFile()"><i class="fas fa-save"></i> Guardar</button>
+  <button class="btn-sm btn-accent" onclick="openConfig()"><i class="fas fa-bolt"></i> Config Pipeline</button>
+  <button class="btn-sm" onclick="memoryPanel.open()" title="Memoria de proyecto">
+    <i class="fas fa-clock-rotate-left"></i> Memoria
+    <span id="memory-badge">0</span>
+  </button>
+</div>
+
+<!-- WORKSPACE -->
+<div id="workspace">
+
+  <!-- SIDEBAR IZQUIERDO: Explorador + Archivos adicionales -->
+  <div id="sidebar">
+    <div class="panel-header">
+      Explorador
+      <div class="ph-actions">
+        <button class="icon-btn" title="Recargar proyecto" onclick="reloadProject()"><i class="fas fa-rotate-right"></i></button>
+        <button class="icon-btn" title="Contraer todo" onclick="collapseAll()"><i class="fas fa-compress-alt"></i></button>
+      </div>
+    </div>
+
+    <div id="project-path-bar">
+      <input id="project-path-input" type="text" placeholder="C:\ruta\al\proyecto" title="Ruta del proyecto">
+      <button class="icon-btn" onclick="browseFolder('project')" title="Navegar hasta la carpeta" style="color:var(--accent);font-size:14px"><i class="fas fa-folder-open"></i></button>
+      <button class="icon-btn" onclick="loadProject()" title="Recargar" style="color:var(--green);font-size:13px"><i class="fas fa-rotate-right"></i></button>
+    </div>
+
+    <!-- ARCHIVOS ADICIONALES (lista, sin botón duplicado) -->
+    <div id="additional-files-bar">
+      <div id="additional-files-header">
+        <span><i class="fas fa-paperclip" style="color:var(--amber)"></i> Contexto adicional</span>
+      </div>
+      <div id="additional-files-list">
+        <div style="color:var(--text2);font-size:10px;padding:2px 4px">Sin archivos adicionales</div>
+      </div>
+    </div>
+
+    <div id="file-search">
+      <input type="text" placeholder="🔍 Buscar archivo..." oninput="filterTree(this.value)">
+    </div>
+
+    <div id="file-tree">
+      <div style="padding:20px 12px; color:var(--text2); font-size:11px; text-align:center; line-height:1.6;">
+        <i class="fas fa-folder-open" style="font-size:24px;color:var(--bg4);display:block;margin-bottom:8px"></i>
+        Ingresá la ruta y presioná el botón de carpeta para cargar el árbol de archivos.
+      </div>
+    </div>
+  </div>
+
+  <div class="vsplit"></div>
+
+  <!-- EDITOR + SANDBOX (centro) -->
+  <div id="editor-area">
+
+    <!-- Barra superior del editor con botón nueva pestaña sandbox -->
+    <div id="sandbox-header">
+      <span>Sandbox / Editor</span>
+      <button class="btn-sm" onclick="openSandboxNewTab()" title="Abrir sandbox en nueva pestaña">
+        <i class="fas fa-external-link-alt"></i> Nueva pestaña
+      </button>
+    </div>
+
+    <div id="tabs"></div>
+
+    <!-- Sandbox siempre visible como pantalla central cuando no hay editor -->
+    <div id="sandbox-area" style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg0);">
+      <iframe id="sandbox-iframe" sandbox="allow-scripts allow-same-origin allow-modals allow-forms"
+        style="flex:1;border:none;width:100%;"
+        srcdoc="<html><body style='background:#0d1117;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px;font-family:monospace;color:#30363d;margin:0'><svg width=60 height=60 viewBox='0 0 24 24' fill='none' stroke='%2330363d' stroke-width='1.5'><polyline points='16 18 22 12 16 6'/><polyline points='8 6 2 12 8 18'/></svg><span style='font-size:14px;letter-spacing:2px'>J.A.R.V.I.S. IDE</span><span style='font-size:11px;color:%236e7681'>El sandbox aparecerá aquí</span></body></html>">
+      </iframe>
+    </div>
+
+    <div id="monaco-container" style="display:none;flex:1"></div>
+  </div>
+
+  <div class="vsplit"></div>
+
+  <!-- PANEL DERECHO: CONTEXTO / GRAFO -->
+  <div id="graph-panel">
+    <div class="panel-header">
+      Contexto / Grafo
+    </div>
+    <div id="obsidian-path-bar">
+      <input id="obsidian-path-input" type="text" placeholder="C:\vault\obsidian" title="Vault Obsidian">
+      <button class="icon-btn" onclick="browseFolder('obsidian')" title="Navegar hasta la bóveda" style="color:var(--purple);font-size:14px"><i class="fas fa-folder-open"></i></button>
+      <button class="icon-btn" onclick="loadGraph()" title="Cargar grafo" style="color:var(--accent);font-size:13px"><i class="fas fa-diagram-project"></i></button>
+    </div>
+    <div class="panel-tabs">
+      <div class="panel-tab active" onclick="switchGraphTab('nodes', this)">🗂 Grafo</div>
+      <div class="panel-tab" onclick="switchGraphTab('info', this)">🔍 Detalle</div>
+      <div class="panel-tab" onclick="switchGraphTab('sync', this)">Sync</div>
+    </div>
+    <div class="panel-content" id="graph-content-nodes">
+      <div style="color:var(--text2);font-size:11px;padding:8px;text-align:center">
+        <i class="fas fa-diagram-project" style="font-size:20px;color:var(--bg4);display:block;margin:8px 0"></i>
+        Cargá el vault de Obsidian para ver el grafo.
+      </div>
+    </div>
+    <div class="panel-content" id="graph-content-info" style="display:none">
+      <div class="info-block" id="module-info-block">
+        <h4>Sin selección</h4>
+        <p style="color:var(--text2)">Hacé clic en un nodo del grafo para ver su detalle aquí.</p>
+      </div>
+    </div>
+    <div class="panel-content" id="graph-content-sync" style="display:none">
+      <div id="sync-info">
+        <div style="color:var(--text2);font-size:11px;text-align:center;padding:8px">
+          Ejecutá el agente para ver el estado de sincronización.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM PANEL -->
+<div id="bottom-panel">
+
+  <!-- CHAT -->
+  <div id="chat-area">
+    <div class="panel-header">
+      Chat del agente
+      <div class="ph-actions">
+        <button class="icon-btn" onclick="clearChat()" title="Limpiar chat"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+    <div id="chat-messages">
+      <div class="msg system">
+        <div style="margin-bottom:8px">
+          🤖 <strong>J.A.R.V.I.S. online.</strong>
+        </div>
+        <div style="line-height:1.6">
+          <strong style="color:var(--accent)">1. Configurá</strong> tu proveedor LLM (local o cloud) desde <strong>LLM Config</strong><br>
+          <strong style="color:var(--accent)">2. Cargá</strong> tu proyecto y vault de Obsidian<br>
+          <strong style="color:var(--accent)">3. Adjuntá</strong> archivos adicionales si necesitás<br>
+          <strong style="color:var(--accent)">4. Pre-configurá</strong> el pipeline con <strong>Config Pipeline</strong> (opcional)<br>
+          <strong style="color:var(--accent)">5. Escribí</strong> en el chat qué necesitás — el agente revisa, corrige e integra todo el contexto automáticamente
+        </div>
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--text2)">
+          💡 Tip: Usá <strong>Config Pipeline</strong> para archivos específicos o escribí directo en el chat para consultas generales
+        </div>
+      </div>
+    </div>
+    <div id="chat-input-area">
+      <button class="icon-btn" onclick="document.getElementById('chat-attach-input').click()" title="Adjuntar archivo al contexto" style="color:var(--amber);font-size:15px;padding:4px 6px">
+        <i class="fas fa-paperclip"></i>
+      </button>
+      <input type="file" id="chat-attach-input" style="display:none" multiple accept="*/*">
+      <textarea id="chat-input" placeholder="Describí el problema... el agente revisa proyecto, bóveda y adjuntos automáticamente." rows="1"
+        onkeydown="chatKeydown(event)" oninput="autoResize(this)"></textarea>
+      <button class="btn-sm btn-accent" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+  <!-- EVENTS LOG -->
+  <div id="events-area">
+    <div class="panel-header">
+      Trazabilidad
+      <div class="ph-actions">
+        <button class="icon-btn" onclick="clearEvents()"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+    <div id="events-log">
+      <div style="color:var(--text2);font-size:11px;text-align:center;padding:12px">
+        Los pasos del agente aparecerán aquí en tiempo real.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div class="sb-item"><i class="fas fa-circle" id="ws-status"></i> <span id="ws-label">Desconectado</span></div>
+  <div class="sb-item"><i class="fas fa-file-code"></i> <span id="sb-file">—</span></div>
+  <div class="sb-item"><i class="fas fa-layer-group"></i> <span id="sb-modules">— módulos</span></div>
+  <div class="sb-item"><i class="fas fa-paperclip"></i> <span id="sb-additional">0 adicionales</span></div>
+  <div class="sb-item" style="margin-left:auto"><i class="fas fa-robot"></i> JARVIS IDE v3.0</div>
+</div>
+
+<script>
+// =====================================================================
+// CONFIG & STATE
+// =====================================================================
+const API_BASE = 'http://localhost:8000';
+const WS_URL   = 'ws://localhost:8000/ws/agent';
+const OLLAMA_URL = 'http://localhost:11434';
+
+let ws = null;
+let monacoEditor = null;
+let openTabs = [];
+let activeTab = null;
+let projectRoot = null;
+let projectTree = null;
+let impactedFiles = new Set();
+let graphNodes = [];
+let graphEdges = [];
+let sandboxContent = '';
+
+// Archivos adicionales de contexto: [{name, content, size}]
+let additionalFiles = [];
+
+// Configuración del proveedor LLM (persistida en sessionStorage)
+let providerConfig = {
+  provider: 'openai',
+  model: '',
+  api_key: '',
+  base_url: 'https://api.openai.com/v1',
+  temperature: 0.2,
+  max_tokens: 4000,
+  surgeon: null,
+};
+
+// Base URLs por defecto por proveedor
+const PROVIDER_BASE_URLS = {
+  openai:    'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com',
+  google:    'https://generativelanguage.googleapis.com/v1beta/openai',
+  nvidia:    'https://integrate.api.nvidia.com/v1',
+};
+
+let advancedSettings = {
+  max_retries: 3,
+  timeout: 120,
+  temperature: 0.2,
+  max_tokens: 4000,
+  allow_code_editing: false,
+  allow_obsidian: true,
+};
+
+// =====================================================================
+// MONACO INIT
+// =====================================================================
+require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require(['vs/editor/editor.main'], () => {
+  monacoEditor = monaco.editor.create(document.getElementById('monaco-container'), {
+    value: '',
+    language: 'python',
+    theme: 'vs-dark',
+    fontSize: 13,
+    fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+    minimap: { enabled: true },
+    scrollBeyondLastLine: false,
+    wordWrap: 'off',
+    automaticLayout: true,
+    lineNumbers: 'on',
+    renderWhitespace: 'selection',
+    bracketPairColorization: { enabled: true },
+  });
+  monacoEditor.onDidChangeModelContent(() => {
+    if (activeTab) { activeTab.modified = true; renderTabs(); }
+  });
+});
+
+// =====================================================================
+// WEBSOCKET
+// =====================================================================
+function connectWS() {
+  const wsIcon = document.getElementById('ws-status');
+  const wsLabel = document.getElementById('ws-label');
+  wsIcon.className = 'fas fa-circle connecting';
+  wsLabel.textContent = 'Conectando...';
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    wsIcon.className = 'fas fa-circle ok';
+    wsLabel.textContent = 'Backend conectado';
+    addSystemMsg('✅ Conexión con backend establecida.');
+  };
+  ws.onmessage = (e) => handleAgentEvent(JSON.parse(e.data));
+  ws.onclose = () => {
+    wsIcon.className = 'fas fa-circle err';
+    wsLabel.textContent = 'Desconectado';
+    setTimeout(connectWS, 3000);
+  };
+  ws.onerror = () => {
+    wsIcon.className = 'fas fa-circle err';
+    wsLabel.textContent = 'Error de conexión';
+  };
+}
+connectWS();
+
+// =====================================================================
+// AGENT EVENT HANDLER
+// =====================================================================
+const EVENT_ICONS = {
+  task_received: { icon: 'fas fa-play', color: 'var(--accent)' },
+  file_read: { icon: 'fas fa-file-code', color: 'var(--teal)' },
+  dependency_found: { icon: 'fas fa-sitemap', color: 'var(--purple)' },
+  graph_node_loaded: { icon: 'fas fa-diagram-project', color: '#4b89dc' },
+  impact_detected: { icon: 'fas fa-radiation', color: 'var(--amber)' },
+  patch_generated: { icon: 'fas fa-bandage', color: 'var(--green)' },
+  graph_update_suggested: { icon: 'fas fa-arrows-rotate', color: 'var(--purple)' },
+  task_completed: { icon: 'fas fa-check-circle', color: 'var(--green)' },
+  task_failed: { icon: 'fas fa-times-circle', color: 'var(--red)' },
+  log: { icon: 'fas fa-terminal', color: 'var(--text2)' },
+};
+
+function handleAgentEvent(event) {
+  addEventItem(event);
+  const p = event.payload || {};
+  const msg = p.message || '';
+  switch(event.type) {
+    case 'task_received': addSystemMsg(`🚀 Pipeline iniciado para: <strong>${p.archivo || ''}</strong>`); break;
+    case 'file_read': if (p.file) highlightTreeItem(p.file); break;
+    case 'dependency_found':
+      if (p.deps && p.deps.length) {
+        addSystemMsg(`🔗 Dependencias: ${p.deps.map(d=>`<span class="badge badge-blue">${d}</span>`).join('')}`);
+      }
+      break;
+    case 'impact_detected':
+      if (p.diagnostico) {
+        addSystemMsg(`📋 <strong>Diagnóstico:</strong><br><pre style="font-size:10px;white-space:pre-wrap;margin-top:4px;color:var(--amber)">${p.diagnostico.substring(0,400)}...</pre>`);
+        updateSyncPanel(p.diagnostico);
+      }
+      break;
+    case 'patch_generated':
+      addSystemMsg(`🩹 Parche aplicado en <strong>${p.file}</strong>. Backup .bak creado.`, 'success');
+      if (p.file) impactedFiles.add(p.file);
+      renderTree(projectTree);
+      break;
+    case 'graph_node_loaded':
+      if (p.mapa) updateSyncFromMapa(p.mapa);
+      addSystemMsg(`📊 ${msg}`);
+      break;
+    case 'task_completed':
+      addSystemMsg(`✅ <strong>Pipeline finalizado.</strong> ${msg}`, 'success');
+      hideLoader();
+      break;
+    case 'task_failed':
+      addSystemMsg(`❌ ${msg}`, 'error');
+      hideLoader();
+      break;
+  }
+}
+
+function addEventItem(event) {
+  const log = document.getElementById('events-log');
+  const placeholder = log.querySelector('div[style]');
+  if (placeholder && placeholder.textContent.includes('pasos del agente')) placeholder.remove();
+  const meta = EVENT_ICONS[event.type] || EVENT_ICONS.log;
+  const p = event.payload || {};
+  const msg = p.message || p.file || event.type;
+  const ts = new Date(event.ts * 1000).toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const div = document.createElement('div');
+  div.className = `event-item ${event.type}`;
+  div.innerHTML = `
+    <i class="${meta.icon} event-icon" style="color:${meta.color}"></i>
+    <div class="event-body">
+      <div class="event-type">${event.type.replace(/_/g,' ')}</div>
+      <div class="event-msg">${msg}</div>
+    </div>
+    <div class="event-time">${ts}</div>
+  `;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// =====================================================================
+// MODELOS LOCALES (OLLAMA)
+// =====================================================================
+async function fetchLocalModels() {
+  try {
+    const r = await fetch(`${OLLAMA_URL}/api/tags`);
+    if (!r.ok) throw new Error('Ollama no disponible');
+    const data = await r.json();
+    const sel = document.getElementById('local-model-select');
+    sel.innerHTML = '<option value="">— sin local —</option>';
+    (data.models || []).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.name;
+      opt.textContent = m.name;
+      sel.appendChild(opt);
+    });
+    if (data.models && data.models.length > 0) {
+      showToast(`✅ ${data.models.length} modelos locales cargados`);
+    }
+  } catch(e) {
+    showToast('⚠️ Ollama no detectado en localhost:11434');
+  }
+}
+
+function onLocalModelChange() {
+  const val = document.getElementById('local-model-select').value;
+  if (val) {
+    showToast(`🟢 Modelo local activo: ${val}`);
+  }
+}
+
+async function installLocalModel() {
+  const name = document.getElementById('local-install-input').value.trim();
+  if (!name) { showToast('⚠️ Escribí el nombre del modelo'); return; }
+  showToast(`⏳ Instalando ${name}... puede tardar varios minutos`);
+  try {
+    const r = await fetch(`${OLLAMA_URL}/api/pull`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name })
+    });
+    if (!r.ok) throw new Error('Error al instalar');
+    showToast(`✅ ${name} instalado. Recargando modelos...`);
+    document.getElementById('local-install-input').value = '';
+    setTimeout(fetchLocalModels, 2000);
+  } catch(e) {
+    showToast(`❌ Error: ${e.message}`);
+  }
+}
+
+// =====================================================================
+// PROVEEDOR LLM CLOUD
+// =====================================================================
+function openProviderModal() {
+  document.getElementById('prov-model').value = providerConfig.model || '';
+  document.getElementById('prov-apikey').value = providerConfig.api_key || '';
+  document.getElementById('prov-baseurl').value = providerConfig.base_url || '';
+  document.getElementById('prov-temperature').value = providerConfig.temperature || 0.2;
+  document.getElementById('prov-max-tokens').value = providerConfig.max_tokens || 4000;
+
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  const found = [...document.querySelectorAll('.provider-card')].find(c =>
+    c.getAttribute('onclick').includes(`'${providerConfig.provider}'`)
+  );
+  if (found) found.classList.add('selected');
+
+  document.getElementById('test-conn-result').className = '';
+  document.getElementById('test-conn-result').style.display = 'none';
+  document.getElementById('provider-modal').classList.add('show');
+}
+
+function closeProviderModal() {
+  document.getElementById('provider-modal').classList.remove('show');
+}
+
+function selectProvider(name, el) {
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  providerConfig.provider = name;
+  document.getElementById('prov-baseurl').value = PROVIDER_BASE_URLS[name] || '';
+  const hints = {
+    openai: 'gpt-4o',
+    anthropic: 'claude-3-5-sonnet-20241022',
+    google: 'gemini-2.0-flash',
+    nvidia: 'meta/llama-3.1-70b-instruct',
+  };
+  document.getElementById('prov-model').placeholder = hints[name] || 'nombre del modelo';
+}
+
+function toggleSecondaryProvider() {
+  const block = document.getElementById('prov-secondary-block');
+  block.style.display = document.getElementById('prov-use-secondary').checked ? '' : 'none';
+}
+
+async function testConnection() {
+  const result = document.getElementById('test-conn-result');
+  result.textContent = '⏳ Probando conexión...';
+  result.className = 'loading';
+
+  const provider = providerConfig.provider;
+  const model = document.getElementById('prov-model').value.trim();
+  const apiKey = document.getElementById('prov-apikey').value.trim();
+  const baseUrl = document.getElementById('prov-baseurl').value.trim();
+
+  if (!apiKey && provider !== 'local') {
+    result.textContent = '❌ API Key requerida';
+    result.className = 'err';
+    return;
+  }
+  if (!model) {
+    result.textContent = '❌ Nombre de modelo requerido';
+    result.className = 'err';
+    return;
+  }
+
+  try {
+    const r = await fetch(`${API_BASE}/api/config/update`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        overrides: { provider, model_name: model, api_key: apiKey, base_url: baseUrl }
+      })
+    });
+    if (r.ok) {
+      result.textContent = `✅ Conexión exitosa — ${provider}/${model}`;
+      result.className = 'ok';
+    } else {
+      result.textContent = `❌ Backend respondió con error ${r.status}`;
+      result.className = 'err';
+    }
+  } catch(e) {
+    result.textContent = `❌ No se pudo alcanzar el backend: ${e.message}`;
+    result.className = 'err';
+  }
+}
+
+function saveProviderConfig() {
+  providerConfig.provider = [...document.querySelectorAll('.provider-card')].find(c => c.classList.contains('selected'))
+    ?.getAttribute('onclick').match(/'([^']+)'/)?.[1] || 'openai';
+  providerConfig.model = document.getElementById('prov-model').value.trim();
+  providerConfig.api_key = document.getElementById('prov-apikey').value.trim();
+  providerConfig.base_url = document.getElementById('prov-baseurl').value.trim();
+  providerConfig.temperature = parseFloat(document.getElementById('prov-temperature').value) || 0.2;
+  providerConfig.max_tokens = parseInt(document.getElementById('prov-max-tokens').value) || 4000;
+
+  if (document.getElementById('prov-use-secondary').checked) {
+    providerConfig.surgeon = {
+      provider: document.getElementById('prov-surgeon-provider').value,
+      model: document.getElementById('prov-surgeon-model').value.trim(),
+      api_key: document.getElementById('prov-surgeon-key').value.trim(),
+    };
+  } else {
+    providerConfig.surgeon = null;
+  }
+
+  closeProviderModal();
+  showToast(`✅ Proveedor guardado: ${providerConfig.provider}/${providerConfig.model || '—'}`);
+}
+
+// =====================================================================
+// ARCHIVOS ADICIONALES DE CONTEXTO
+// =====================================================================
+document.getElementById('additional-file-input').addEventListener('change', async function(e) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      additionalFiles.push({
+        name: file.name,
+        content: ev.target.result,
+        size: file.size,
+      });
+      renderAdditionalFiles();
+    };
+    reader.readAsText(file);
+  }
+  this.value = '';
+});
+
+function renderAdditionalFiles() {
+  const list = document.getElementById('additional-files-list');
+  document.getElementById('sb-additional').textContent = `${additionalFiles.length} adicionales`;
+
+  if (!additionalFiles.length) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:10px;padding:2px 4px">Sin archivos adicionales</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  additionalFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'add-file-item';
+    div.innerHTML = `
+      <i class="fas fa-file" style="color:var(--amber);font-size:10px;flex-shrink:0"></i>
+      <span class="af-name" title="${f.name}">${f.name}</span>
+      <span style="color:var(--text2);font-size:9px">${(f.size/1024).toFixed(1)}k</span>
+      <button class="af-remove" onclick="removeAdditionalFile(${i})" title="Quitar">✕</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function removeAdditionalFile(idx) {
+  additionalFiles.splice(idx, 1);
+  renderAdditionalFiles();
+}
+
+// =====================================================================
+// SANDBOX
+// =====================================================================
+function updateSandbox(html) {
+  sandboxContent = html;
+  const iframe = document.getElementById('sandbox-iframe');
+  iframe.srcdoc = html;
+  document.getElementById('sandbox-area').style.display = 'flex';
+  document.getElementById('monaco-container').style.display = 'none';
+}
+
+function openSandboxNewTab() {
+  const w = window.open('', '_blank');
+  w.document.write(sandboxContent || '<p style="font-family:sans-serif;padding:20px;color:#888">Sandbox vacío</p>');
+  w.document.close();
+}
+
+function downloadCode() {
+  if (!sandboxContent) { showToast('⚠️ El sandbox está vacío'); return; }
+  const blob = new Blob([sandboxContent], {type: 'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'jarvis_output.html';
+  a.click();
+  showToast('💾 Descargando HTML...');
+}
+
+async function downloadProjectZip() {
+  if (!window.JSZip) {
+    showToast('⚠️ JSZip no cargado, descargando código simple...');
+    downloadCode();
+    return;
+  }
+  const zip = new JSZip();
+  if (sandboxContent) zip.file('index.html', sandboxContent);
+  additionalFiles.forEach(f => zip.file(f.name, f.content));
+  openTabs.forEach(tab => {
+    if (tab.content) zip.file(tab.name, tab.content);
+  });
+  const blob = await zip.generateAsync({type: 'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'jarvis_proyecto.zip';
+  a.click();
+  showToast('📦 Descargando ZIP...');
+}
+
+// =====================================================================
+// PROJECT LOAD
+// =====================================================================
+async function browseFolder(target) {
+  try {
+    const r = await fetch(`${API_BASE}/api/dialog/folder`, { method: 'POST' });
+    if (!r.ok) throw new Error('Sin respuesta');
+    const data = await r.json();
+    if (!data.path) return;
+    if (target === 'project') {
+      document.getElementById('project-path-input').value = data.path;
+      loadProject();
+    } else if (target === 'obsidian') {
+      document.getElementById('obsidian-path-input').value = data.path;
+      loadGraph();
+    }
+  } catch(e) {
+    showToast('⚠️ Endpoint /api/dialog/folder no disponible — ingresá la ruta manualmente');
+  }
+}
+
+async function loadProject() {
+  const path = document.getElementById('project-path-input').value.trim();
+  if (!path) return;
+  showLoader('Cargando proyecto...');
+  try {
+    const r = await fetch(`${API_BASE}/api/project/load`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ path })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const data = await r.json();
+    projectRoot = path;
+    projectTree = data.tree;
+    const count = countPyFiles(data.tree);
+    document.getElementById('sb-modules').textContent = `${count} módulos`;
+    renderTree(data.tree);
+    addSystemMsg(`📁 Proyecto cargado: <strong>${data.tree.name}</strong> (${count} archivos .py)`);
+  } catch(e) {
+    addSystemMsg(`❌ Error cargando proyecto: ${e.message}`, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+function countPyFiles(node) {
+  if (!node) return 0;
+  if (node.type === 'file') return node.ext === '.py' ? 1 : 0;
+  return (node.children || []).reduce((s,c) => s + countPyFiles(c), 0);
+}
+
+async function reloadProject() {
+  if (document.getElementById('project-path-input').value) loadProject();
+}
+
+function filterTree(query) {
+  document.querySelectorAll('.tree-item').forEach(el => {
+    el.style.display = (el.dataset.name||'').toLowerCase().includes(query.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function collapseAll() {
+  document.querySelectorAll('.tree-children').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('.tree-dir .fa-folder-open').forEach(i => i.classList.replace('fa-folder-open','fa-folder'));
+}
+
+// =====================================================================
+// FILE TREE RENDER
+// =====================================================================
+function renderTree(node, container = null, depth = 0) {
+  if (!container) { container = document.getElementById('file-tree'); container.innerHTML = ''; }
+  if (!node) return;
+  const div = document.createElement('div');
+  div.dataset.name = node.name;
+  if (node.type === 'dir') {
+    const header = document.createElement('div');
+    header.className = 'tree-item tree-dir';
+    header.style.paddingLeft = `${8 + depth * 14}px`;
+    header.innerHTML = `<i class="fas fa-folder" style="color:var(--accent)"></i><span class="item-name">${node.name}</span>`;
+    const children = document.createElement('div');
+    children.className = 'tree-children';
+    children.style.display = depth < 2 ? '' : 'none';
+    header.onclick = () => {
+      const open = children.style.display !== 'none';
+      children.style.display = open ? 'none' : '';
+      header.querySelector('i').className = open ? 'fas fa-folder' : 'fas fa-folder-open';
+      header.querySelector('i').style.color = 'var(--accent)';
+    };
+    if (depth < 2) header.querySelector('i').className = 'fas fa-folder-open';
+    div.appendChild(header);
+    div.appendChild(children);
+    (node.children || []).forEach(child => renderTree(child, children, depth + 1));
+  } else {
+    const ext = (node.ext || '').replace('.','');
+    const item = document.createElement('div');
+    item.className = `tree-item tree-file ${ext}`;
+    item.style.paddingLeft = `${8 + depth * 14}px`;
+    item.dataset.name = node.name;
+    item.dataset.abs = node.abs;
+    if (impactedFiles.has(node.name)) item.classList.add('impacted');
+    item.innerHTML = `<i class="${getFileIcon(node.name, ext)}"></i><span class="item-name">${node.name}</span>`;
+    item.onclick = () => openFile(node.abs, node.name);
+    div.appendChild(item);
+  }
+  container.appendChild(div);
+}
+
+function getFileIcon(name, ext) {
+  const icons = { py:'fab fa-python', md:'fab fa-markdown', json:'fas fa-brackets-curly',
+    bat:'fas fa-terminal', txt:'fas fa-file-lines', js:'fab fa-js', html:'fab fa-html5', css:'fab fa-css3' };
+  return icons[ext] || 'fas fa-file';
+}
+
+function highlightTreeItem(filename) {
+  document.querySelectorAll('.tree-item').forEach(el => {
+    if (el.dataset.name === filename) {
+      el.style.transition = 'background .3s';
+      el.style.background = 'rgba(88,166,255,0.15)';
+      setTimeout(() => { el.style.background = ''; }, 1500);
+    }
+  });
+}
+
+// =====================================================================
+// FILE OPEN / EDITOR TABS
+// =====================================================================
+async function openFile(absPath, name) {
+  const existing = openTabs.find(t => t.path === absPath);
+  if (existing) { activateTab(existing); return; }
+  try {
+    const r = await fetch(`${API_BASE}/api/file/read`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ abs_path: absPath })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const data = await r.json();
+    const tab = { path: absPath, name, content: data.content, modified: false };
+    openTabs.push(tab);
+    activateTab(tab);
+    if (name.endsWith('.py')) updateModuleInfo(name.replace('.py',''));
+  } catch(e) {
+    addSystemMsg(`❌ Error abriendo ${name}: ${e.message}`, 'error');
+  }
+}
+
+function activateTab(tab) {
+  activeTab = tab;
+  document.getElementById('sandbox-area').style.display = 'none';
+  document.getElementById('monaco-container').style.display = 'block';
+  const lang = getLang(tab.name);
+  const model = monacoEditor.getModel();
+  if (model) model.dispose();
+  monacoEditor.setModel(monaco.editor.createModel(tab.content, lang));
+  monacoEditor.focus();
+  document.getElementById('sb-file').textContent = tab.name;
+  renderTabs();
+  document.querySelectorAll('.tree-item').forEach(el => el.classList.toggle('active', el.dataset.name === tab.name));
+}
+
+function getLang(name) {
+  const map = { py:'python', js:'javascript', json:'json', md:'markdown', html:'html', css:'css', bat:'bat' };
+  return map[name.split('.').pop()] || 'plaintext';
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tabs');
+  bar.innerHTML = '';
+  openTabs.forEach(tab => {
+    const div = document.createElement('div');
+    div.className = `tab${tab===activeTab?' active':''}${tab.modified?' modified':''}`;
+    div.innerHTML = `
+      <i class="${getFileIcon(tab.name, tab.name.split('.').pop())}" style="font-size:11px"></i>
+      <span>${tab.name}</span>
+      <button class="tab-close" onclick="closeTab(event,'${tab.path}')"><i class="fas fa-times"></i></button>
+    `;
+    div.onclick = (e) => { if (!e.target.closest('.tab-close')) activateTab(tab); };
+    bar.appendChild(div);
+  });
+}
+
+function closeTab(e, path) {
+  e.stopPropagation();
+  const idx = openTabs.findIndex(t => t.path === path);
+  if (idx === -1) return;
+  openTabs.splice(idx, 1);
+  if (!openTabs.length) {
+    activeTab = null;
+    document.getElementById('sandbox-area').style.display = 'flex';
+    document.getElementById('monaco-container').style.display = 'none';
+    document.getElementById('sb-file').textContent = '—';
+  } else {
+    activateTab(openTabs[Math.min(idx, openTabs.length - 1)]);
+  }
+  renderTabs();
+}
+
+async function saveCurrentFile() {
+  if (!activeTab) return;
+  const content = monacoEditor.getValue();
+  try {
+    const r = await fetch(`${API_BASE}/api/file/save`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ abs_path: activeTab.path, content })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    activeTab.content = content;
+    activeTab.modified = false;
+    renderTabs();
+    addSystemMsg(`💾 Guardado: <strong>${activeTab.name}</strong>`, 'success');
+  } catch(e) {
+    addSystemMsg(`❌ Error guardando: ${e.message}`, 'error');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveCurrentFile(); }
+});
+
+// =====================================================================
+// GRAPH / OBSIDIAN
+// =====================================================================
+async function loadGraph() {
+  const vaultPath = document.getElementById('obsidian-path-input').value.trim();
+  if (!vaultPath) return;
+  showLoader('Cargando grafo de Obsidian...');
+  try {
+    const r = await fetch(`${API_BASE}/api/graph/load`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ vault_path: vaultPath, module_name: activeTab ? activeTab.name.replace('.py','') : null })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail);
+    const data = await r.json();
+    graphNodes = data.nodes;
+    graphEdges = data.edges;
+    renderGraphNodes(graphNodes, graphEdges);
+    addSystemMsg(`📊 Grafo: ${data.nodes.length} nodos, ${data.edges.length} enlaces.`);
+  } catch(e) {
+    addSystemMsg(`❌ Error cargando grafo: ${e.message}`, 'error');
+  } finally {
+    hideLoader();
+  }
+}
+
+function renderGraphNodes(nodes, edges) {
+  const container = document.getElementById('graph-content-nodes');
+  container.innerHTML = '';
+  if (!nodes.length) { container.innerHTML = '<div style="color:var(--text2);font-size:11px;text-align:center;padding:12px">Sin nodos</div>'; return; }
+  const edgeMap = {};
+  edges.forEach(e => { if (!edgeMap[e.source]) edgeMap[e.source] = []; edgeMap[e.source].push(e.target); });
+  nodes.forEach(node => {
+    const deps = edgeMap[node.id] || [];
+    const isActive = activeTab && activeTab.name.replace('.py','') === node.id;
+    const div = document.createElement('div');
+    div.className = `graph-node${isActive?' current':''}${impactedFiles.has(node.id+'.py')?' impacted':''}`;
+    div.innerHTML = `<i class="fas fa-cube"></i><span class="node-name">${node.id}</span>${deps.length?`<span class="node-deps">${deps.length}dep</span>`:''}`;
+    div.onclick = () => {
+      updateModuleInfo(node.id);
+      document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel-tab')[1].classList.add('active');
+      document.getElementById('graph-content-nodes').style.display = 'none';
+      document.getElementById('graph-content-info').style.display = '';
+      document.getElementById('graph-content-sync').style.display = 'none';
+    };
+    container.appendChild(div);
+  });
+}
+
+function updateModuleInfo(moduleName) {
+  const block = document.getElementById('module-info-block');
+  const node = graphNodes.find(n => n.id === moduleName);
+  if (!node) { block.innerHTML = `<h4>${moduleName}</h4><p style="color:var(--text2)">Sin documentación en el vault.</p>`; return; }
+  const deps = graphEdges.filter(e => e.source===moduleName).map(e=>e.target);
+  const refs = graphEdges.filter(e => e.target===moduleName).map(e=>e.source);
+  block.innerHTML = `
+    <h4>Módulo: ${moduleName}</h4>
+    <p>Ruta: <code style="font-size:10px;color:var(--text1)">${node.path}</code></p><br>
+    ${deps.length?`<div><strong style="font-size:10px;color:var(--text2)">DEPENDENCIAS</strong><br>${deps.map(d=>`<span class="badge badge-blue">${d}</span>`).join('')}</div><br>`:''}
+    ${refs.length?`<div><strong style="font-size:10px;color:var(--text2)">REFERENCIADO POR</strong><br>${refs.map(r=>`<span class="badge badge-amber">${r}</span>`).join('')}</div>`:''}
+    ${!deps.length&&!refs.length?'<p style="color:var(--text2)">Sin relaciones detectadas.</p>':''}
+  `;
+}
+
+function updateSyncFromMapa(mapa) {
+  const sync = document.getElementById('sync-info');
+  sync.innerHTML = `
+    <div class="info-block">
+      <h4>Sincronización</h4>
+      <p>Módulos código: <span class="badge badge-blue">${mapa.total_modulos_codigo}</span></p>
+      <p>Notas vault: <span class="badge badge-green">${mapa.total_notas_memoria}</span></p>
+    </div>
+    ${mapa.cobertura_parcial_vault_modulos_no_documentados?.length?`
+    <div class="info-block"><h4>⚠️ Sin documentar</h4><p>${mapa.cobertura_parcial_vault_modulos_no_documentados.slice(0,15).map(m=>`<span class="badge badge-amber">${m}</span>`).join('')}</p></div>`:''}
+    ${mapa.documentacion_desfasada_modulos_pendientes?.length?`
+    <div class="info-block"><h4>🗑️ Huérfanas</h4><p>${mapa.documentacion_desfasada_modulos_pendientes.slice(0,10).map(m=>`<span class="badge badge-red">${m}</span>`).join('')}</p></div>`:''}
+  `;
+}
+
+function updateSyncPanel(diagnostico) {
+  const sync = document.getElementById('sync-info');
+  const extra = document.createElement('div');
+  extra.className = 'info-block';
+  extra.innerHTML = `<h4>Diagnóstico</h4><p style="color:var(--amber);font-size:10px;white-space:pre-wrap">${diagnostico.substring(0,500)}</p>`;
+  sync.appendChild(extra);
+}
+
+function switchGraphTab(name, el) {
+  document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('graph-content-nodes').style.display = name==='nodes'?'':'none';
+  document.getElementById('graph-content-info').style.display = name==='info'?'':'none';
+  document.getElementById('graph-content-sync').style.display = name==='sync'?'':'none';
+}
+
+// =====================================================================
+// PIPELINE CONFIG & SUBMIT
+// =====================================================================
+function openAgentSettings() {
+  document.getElementById('adv-max-retries').value = advancedSettings.max_retries;
+  document.getElementById('adv-timeout').value = advancedSettings.timeout;
+  document.getElementById('adv-temperature').value = advancedSettings.temperature;
+  document.getElementById('adv-max-tokens').value = advancedSettings.max_tokens;
+  document.getElementById('adv-allow-editing').checked = advancedSettings.allow_code_editing;
+  document.getElementById('adv-allow-obsidian').checked = advancedSettings.allow_obsidian;
+  document.getElementById('settings-modal').classList.add('show');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+
+function applySettings() {
+  advancedSettings.max_retries = parseInt(document.getElementById('adv-max-retries').value)||3;
+  advancedSettings.timeout = parseInt(document.getElementById('adv-timeout').value)||120;
+  advancedSettings.temperature = parseFloat(document.getElementById('adv-temperature').value)||0.2;
+  advancedSettings.max_tokens = parseInt(document.getElementById('adv-max-tokens').value)||4000;
+  advancedSettings.allow_code_editing = document.getElementById('adv-allow-editing').checked;
+  advancedSettings.allow_obsidian = document.getElementById('adv-allow-obsidian').checked;
+  showToast(`⚙️ Config avanzada aplicada`);
+  closeSettings();
+}
+
+function openConfig() {
+  document.getElementById('config-modal').classList.add('show');
+  if (activeTab && activeTab.name.endsWith('.py')) {
+    document.getElementById('cfg-archivo').value = activeTab.name;
+  }
+}
+
+function closeConfig() {
+  document.getElementById('config-modal').classList.remove('show');
+}
+
+let pipelineConfig = { archivo: '', problema: '', esperado: 'Funcionamiento correcto', sintomas: '' };
+
+function savePipelineConfig() {
+  pipelineConfig.archivo  = document.getElementById('cfg-archivo').value.trim();
+  pipelineConfig.problema = document.getElementById('cfg-problema').value.trim();
+  pipelineConfig.esperado = document.getElementById('cfg-esperado').value.trim() || 'Funcionamiento correcto';
+  pipelineConfig.sintomas = document.getElementById('cfg-sintomas').value.trim();
+  closeConfig();
+  showToast('✅ Config del pipeline guardada');
+}
+
+// =====================================================================
+// CHAT
+// =====================================================================
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  autoResize(input);
+  addChatMsg(text, 'user');
+
+  const pyMatch = text.match(/([a-zA-Z0-9_._/-]+\.py)/);
+  if (pyMatch && !pipelineConfig.archivo) pipelineConfig.archivo = pyMatch[1];
+
+  const problema = text;
+  const archivo  = pipelineConfig.archivo || '';
+  const esperado = pipelineConfig.esperado || 'Funcionamiento correcto';
+  const sintomas = pipelineConfig.sintomas || '';
+
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    addSystemMsg('❌ Backend no conectado. Asegurate de que main.py esté corriendo.', 'error');
+    return;
+  }
+
+  const localModel = document.getElementById('local-model-select').value;
+  const useLocal   = !!localModel;
+
+  showLoader('Analizando con J.A.R.V.I.S...');
+
+  const msg = {
+    action:      'run_pipeline',
+    archivo:     archivo,
+    problema:    problema,
+    esperado:    esperado,
+    sintomas:    sintomas,
+    ruta_proyecto: document.getElementById('project-path-input').value.trim(),
+    ruta_obsidian: document.getElementById('obsidian-path-input').value.trim(),
+    provider:    useLocal ? 'local' : providerConfig.provider,
+    model_name:  useLocal ? localModel : providerConfig.model,
+    api_key:     useLocal ? '' : providerConfig.api_key,
+    base_url:    useLocal ? `${OLLAMA_URL}/v1` : providerConfig.base_url,
+    temperature: providerConfig.temperature,
+    max_tokens:  providerConfig.max_tokens,
+    allow_code_editing: advancedSettings.allow_code_editing,
+    allow_obsidian:     advancedSettings.allow_obsidian,
+    additional_context: additionalFiles.map(f => ({ name: f.name, content: f.content })),
+  };
+
+  if (providerConfig.surgeon && !useLocal) {
+    msg.model_secondary = {
+      provider:   providerConfig.surgeon.provider,
+      model_name: providerConfig.surgeon.model,
+      api_key:    providerConfig.surgeon.api_key,
+      role:       'surgeon',
+    };
+  }
+
+  ws.send(JSON.stringify(msg));
+
+  const parts = [];
+  if (archivo) parts.push(`📄 <strong>${archivo}</strong>`);
+  const vault = document.getElementById('obsidian-path-input').value.trim();
+  if (vault)   parts.push(`🧠 Bóveda cargada`);
+  if (additionalFiles.length) parts.push(`📎 ${additionalFiles.length} adjunto(s)`);
+  const model = useLocal ? `local/${localModel}` : `${providerConfig.provider}/${providerConfig.model||'—'}`;
+  parts.push(`🤖 ${model}`);
+  if (parts.length) addSystemMsg(`Contexto: ${parts.join(' · ')}`, 'system');
+}
+
+function chatKeydown(e) {
+  if (e.key==='Enter'&&!e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function addChatMsg(html, type='system') {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.innerHTML = html;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function addSystemMsg(html, type='system') { addChatMsg(html, type); }
+function clearChat() { document.getElementById('chat-messages').innerHTML = ''; }
+function clearEvents() { document.getElementById('events-log').innerHTML = ''; }
+
+// =====================================================================
+// UTILITIES
+// =====================================================================
+function showLoader(msg='Procesando...') {
+  document.getElementById('loader-msg').textContent = msg;
+  document.getElementById('loader').style.display = 'flex';
+}
+
+function hideLoader() {
+  document.getElementById('loader').style.display = 'none';
+}
+
+function showToast(msg, duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// =====================================================================
+// MEMORIA DE PROYECTO
+// =====================================================================
+const memoryPanel = {
+  _mode: 'json',
+
+  open() {
+    document.getElementById('memory-modal').classList.add('show');
+    this.loadConfig();
+    this.loadHistory();
+  },
+
+  close() {
+    document.getElementById('memory-modal').classList.remove('show');
+  },
+
+  switchTab(tab, btn) {
+    document.querySelectorAll('.mem-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.mem-tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`mem-tab-${tab}`).classList.add('active');
+  },
+
+  onToggle(chk) {
+    const track = chk.closest('.toggle-switch').querySelector('.toggle-track');
+    const thumb = chk.closest('.toggle-switch').querySelector('.toggle-thumb');
+    if (track) track.style.background = chk.checked ? 'var(--green)' : '';
+    if (thumb) thumb.style.transform = chk.checked ? 'translateX(18px)' : '';
+  },
+
+  selectMode(mode, card) {
+    this._mode = mode;
+    document.querySelectorAll('.mem-mode-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('mem-dir-group').style.display = mode !== 'obsidian' ? '' : 'none';
+    document.getElementById('mem-obsidian-group').style.display = mode === 'obsidian' ? '' : 'none';
+  },
+
+  async pickDir(inputId) {
+    try {
+      const r = await fetch(`${API_BASE}/api/dialog/folder`, { method: 'POST' });
+      const d = await r.json();
+      if (d.path) document.getElementById(inputId).value = d.path;
+    } catch(e) { showToast('⚠️ Dialog no disponible'); }
+  },
+
+  async loadConfig() {
+    try {
+      const r = await fetch(`${API_BASE}/api/memory/config`);
+      const d = await r.json();
+      if (!d.ok) return;
+      const cfg = d.config;
+
+      const chk = document.getElementById('mem-enabled');
+      chk.checked = cfg.enabled;
+      this.onToggle(chk);
+
+      // Modo
+      this._mode = cfg.mode || 'json';
+      document.querySelectorAll('.mem-mode-card').forEach(c => c.classList.remove('selected'));
+      const modeMap = { json: 0, markdown: 1, obsidian: 2 };
+      const idx = modeMap[this._mode] ?? 0;
+      document.querySelectorAll('.mem-mode-card')[idx]?.classList.add('selected');
+      document.getElementById('mem-dir-group').style.display = this._mode !== 'obsidian' ? '' : 'none';
+      document.getElementById('mem-obsidian-group').style.display = this._mode === 'obsidian' ? '' : 'none';
+
+      const dirEl = document.getElementById('mem-dir');
+      if (dirEl) dirEl.value = cfg.memory_dir || './jarvis_memory';
+      const obsEl = document.getElementById('mem-obsidian-folder');
+      if (obsEl) obsEl.value = cfg.obsidian_folder || '';
+      const tagEl = document.getElementById('mem-tag');
+      if (tagEl) tagEl.value = cfg.obsidian_tag || 'jarvis-ide';
+      const pfEl = document.getElementById('mem-per-file');
+      if (pfEl) pfEl.checked = cfg.create_per_file_notes !== false;
+
+      document.getElementById('mem-mode-badge').textContent = this._mode;
+    } catch(e) { /* backend no disponible */ }
+  },
+
+  async loadHistory() {
+    try {
+      const r = await fetch(`${API_BASE}/api/memory/history`);
+      const d = await r.json();
+      if (!d.ok) return;
+      const { summary, entries } = d;
+
+      document.getElementById('stat-total').textContent = summary.total_changes || 0;
+      document.getElementById('stat-files').textContent = (summary.files_touched || []).length;
+      const last = summary.last_change;
+      document.getElementById('stat-last').textContent = last
+        ? `${last.file_path} · ${new Date(last.timestamp).toLocaleTimeString()}`
+        : '—';
+
+      // Badge titlebar
+      const badge = document.getElementById('memory-badge');
+      const count = summary.total_changes || 0;
+      badge.textContent = count;
+      badge.style.display = count > 0 ? '' : 'none';
+
+      // Entradas
+      const container = document.getElementById('mem-entries');
+      if (!entries || !entries.length) {
+        container.innerHTML = `
+          <div style="color:var(--text2);font-size:11px;text-align:center;padding:24px">
+            <i class="fas fa-clock-rotate-left" style="font-size:20px;color:var(--bg4);display:block;margin-bottom:8px"></i>
+            No hay cambios registrados aún.<br>
+            <span style="font-size:10px">Los cambios aparecerán aquí después de que el agente aplique un parche.</span>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      [...entries].reverse().forEach(e => {
+        const dt = new Date(e.timestamp);
+        const fname = (e.file_path || '').split(/[\\/]/).pop();
+        const type = e.change_type || 'edit';
+        const div = document.createElement('div');
+        div.className = `mem-entry ${type}`;
+        div.innerHTML = `
+          <div class="mem-entry-head">
+            <span class="mem-entry-type ${type}">${type}</span>
+            <span class="mem-entry-file" title="${e.file_path}">${fname}</span>
+            <span class="mem-entry-time">${dt.toLocaleDateString()} ${dt.toLocaleTimeString()}</span>
+          </div>
+          ${e.description ? `<div class="mem-entry-desc">${e.description.substring(0, 200)}</div>` : ''}
+          ${e.agent_task ? `<div class="mem-entry-task">Tarea: "${e.agent_task.substring(0, 100)}"</div>` : ''}
+        `;
+        container.appendChild(div);
+      });
+    } catch(e) { /* backend no disponible */ }
+  },
+
+  async saveConfig() {
+    const enabled = document.getElementById('mem-enabled').checked;
+    const mode = this._mode;
+    const memory_dir = document.getElementById('mem-dir').value || './jarvis_memory';
+    const obsidian_folder = document.getElementById('mem-obsidian-folder').value || '';
+    const create_per_file_notes = document.getElementById('mem-per-file')?.checked !== false;
+    const obsidian_tag = document.getElementById('mem-tag')?.value || 'jarvis-ide';
+
+    try {
+      const r = await fetch(`${API_BASE}/api/memory/config`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ enabled, mode, memory_dir, obsidian_folder, create_per_file_notes, obsidian_tag }),
+      });
+      const d = await r.json();
+      const msg = document.getElementById('mem-save-msg');
+      msg.style.display = '';
+      msg.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+      msg.textContent = d.ok ? `✓ ${d.message}` : '✗ Error al guardar';
+      setTimeout(() => msg.style.display = 'none', 3000);
+      if (d.ok) {
+        document.getElementById('mem-mode-badge').textContent = mode;
+        showToast(`📋 Memoria ${enabled ? 'habilitada' : 'deshabilitada'} — modo: ${mode}`);
+      }
+    } catch(e) { showToast('❌ Error: backend no disponible'); }
+  },
+};
+
+// Actualizar badge cada 30s sin abrir el modal
+setInterval(() => {
+  if (!document.getElementById('memory-modal').classList.contains('show')) {
+    fetch(`${API_BASE}/api/memory/summary`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        const badge = document.getElementById('memory-badge');
+        badge.textContent = d.total_changes;
+        badge.style.display = d.total_changes > 0 ? '' : 'none';
+      }).catch(() => {});
+  }
+}, 30000);
+
+// Cerrar con Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('memory-modal').classList.contains('show')) {
+    memoryPanel.close();
+  }
+});
+
+// =====================================================================
+// INIT
+// =====================================================================
+fetchLocalModels();
+
+document.getElementById('chat-attach-input').addEventListener('change', async function(e) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      additionalFiles.push({ name: file.name, content: ev.target.result, size: file.size });
+      renderAdditionalFiles();
+      showToast(`📎 ${file.name} agregado al contexto`);
+    };
+    reader.readAsText(file);
+  }
+  this.value = '';
+});
+</script>
+</body>
+</html>
