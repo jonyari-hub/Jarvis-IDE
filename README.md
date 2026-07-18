@@ -1,6 +1,6 @@
 # J.A.R.V.I.S. IDE — v3.0
 
-## Qué cambió respecto a v3.0
+## Qué cambió respecto a v2.0
 
 | Antes | Después |
 |---|---|
